@@ -18,4 +18,8 @@ class Config:
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
     # --- Thumbnail ---
-    THUMBNAIL_SIZE = (400, 400)
+    THUMBNAIL_SIZE = (480, 480)
+
+    # --- Inventory Rules ---
+    LOW_STOCK_THRESHOLD = 2
+    CARDS_PER_PAGE = 24

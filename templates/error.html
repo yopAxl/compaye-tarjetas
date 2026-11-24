@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ title }} — ComPaye{% endblock %}
+
+{% block content %}
+<div class="empty-state">
+    <div class="empty-state-icon" aria-hidden="true">
+        {{ icon('alert-triangle', 52) }}
+    </div>
+    <h1>{{ code }} — {{ title }}</h1>
+    <p>{{ message }}</p>
+    <a href="{{ url_for('tarjetas.listar') }}" class="btn btn-primary btn-lg">
+        {{ icon('arrow-left', 20) }}
+        <span>Volver al inventario</span>
+    </a>
+</div>
+{% endblock %}

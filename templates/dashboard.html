@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Estadísticas — ComPaye{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Estadísticas del Inventario</h1>
+    <div class="page-header-actions">
+        <a href="{{ url_for('tarjetas.listar') }}" class="btn btn-secondary">
+            {{ icon('search', 18) }}
+            <span>Ir al buscador</span>
+        </a>
+        <a href="{{ url_for('tarjetas.crear') }}" class="btn btn-primary">
+            {{ icon('plus', 18) }}
+            <span>Nueva Tarjeta</span>
+        </a>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- UNIFIED SUMMARY LEDGER (4 operational figures)                -->
+<!-- ============================================================ -->
+<section class="stats-ledger" aria-label="Resumen general del almacén">
+    <div class="ledger-cell">
+        <span class="ledger-label">Modelos registrados</span>
+        <strong class="ledger-value tabular-nums">{{ total_modelos }}</strong>
+        <span class="ledger-note tabular-nums">{{ conteo_disponible }} con stock suficiente</span>
+    </div>
+
+    <div class="ledger-cell">
+        <span class="ledger-label">Piezas en existencia</span>
+        <strong class="ledger-value tabular-nums">{{ total_piezas }}</strong>
+        <span class="ledger-note tabular-nums">en {{ total_contenedores }} {{ 'contenedor' if total_contenedores == 1 else 'contenedores' }}</span>
+    </div>
+
+    <div class="ledger-cell">
+        <span class="ledger-label">Valor del inventario</span>
+        <strong class="ledger-value tabular-nums">{{ valor_total | mxn }}</strong>
+        <span class="ledger-note">Pesos mexicanos (MXN)</span>
+    </div>
+
+    <div class="ledger-cell">
+        <span class="ledger-label">Tarjetas por atender</span>
+        <strong class="ledger-value tabular-nums {% if total_alertas > 0 %}text-warning{% else %}text-success{% endif %}">
+            {{ total_alertas }}
+        </strong>
+        <span class="ledger-note tabular-nums">{{ conteo_agotado }} agotadas · {{ conteo_bajo }} bajo stock</span>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- STOCK HEALTH BAR                                              -->
+<!-- ============================================================ -->
+{% if total_modelos > 0 %}
+    {% set pct_ok = ((conteo_disponible / total_modelos) * 100) | round | int %}
+    {% set pct_low = ((conteo_bajo / total_modelos) * 100) | round | int %}
+    {% set pct_out = 100 - pct_ok - pct_low %}
+    <section class="panel-box health-section" aria-label="Estado general del stock">
+        <div class="panel-head">
+            <h2>Disponibilidad por estado de stock</h2>
+            <span class="panel-meta tabular-nums">{{ total_modelos }} tarjetas evaluadas</span>
+        </div>
+
+        <div class="stacked-bar" role="img" aria-label="Disponible {{ pct_ok }}%, Bajo stock {{ pct_low }}%, Agotado {{ pct_out }}%">
+            {% if conteo_disponible > 0 %}
+                <div class="stacked-seg seg-ok" style="width: {{ pct_ok }}%;"></div>
+            {% endif %}
+            {% if conteo_bajo > 0 %}
+                <div class="stacked-seg seg-low" style="width: {{ pct_low }}%;"></div>
+            {% endif %}
+            {% if conteo_agotado > 0 %}
+                <div class="stacked-seg seg-out" style="width: {{ pct_out }}%;"></div>
+            {% endif %}
+        </div>
+
+        <div class="health-legend">
+            <a href="{{ url_for('tarjetas.listar', stock='disponible') }}" class="legend-item">
+                <span class="legend-swatch swatch-ok" aria-hidden="true"></span>
+                <span>Disponible ({{ low_stock_threshold + 1 }}+ pzas): <strong class="tabular-nums">{{ conteo_disponible }}</strong> ({{ pct_ok }}%)</span>
+            </a>
+            <a href="{{ url_for('tarjetas.listar', stock='bajo') }}" class="legend-item">
+                <span class="legend-swatch swatch-low" aria-hidden="true"></span>
+                <span>Bajo stock (1–{{ low_stock_threshold }} pzas): <strong class="tabular-nums">{{ conteo_bajo }}</strong> ({{ pct_low }}%)</span>
+            </a>
+            <a href="{{ url_for('tarjetas.listar', stock='agotado') }}" class="legend-item">
+                <span class="legend-swatch swatch-out" aria-hidden="true"></span>
+                <span>Agotado (0 pzas): <strong class="tabular-nums">{{ conteo_agotado }}</strong> ({{ pct_out }}%)</span>
+            </a>
+        </div>
+    </section>
+{% endif %}
+
+<!-- ============================================================ -->
+<!-- OPERATIONAL WORKSPACE: ALERTS + CONTAINER DISTRIBUTION        -->
+<!-- ============================================================ -->
+<div class="dashboard-columns">
+    <!-- Priority restock alerts -->
+    <section class="panel-box" aria-labelledby="alerts-heading">
+        <div class="panel-head">
+            <h2 id="alerts-heading">Tarjetas agotadas o con bajo stock</h2>
+            {% if total_alertas > 0 %}
+                <a href="{{ url_for('tarjetas.listar', stock='agotado') }}" class="panel-link">
+                    Ver en inventario
+                </a>
+            {% endif %}
+        </div>
+
+        {% if alertas_tarjetas %}
+            <div class="table-responsive">
+                <table class="table compact-table">
+                    <thead>
+                        <tr>
+                            <th>Tarjeta</th>
+                            <th>Ubicación</th>
+                            <th class="text-center">Stock</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in alertas_tarjetas %}
+                            <tr data-card-row="{{ t.id }}">
+                                <td data-label="Tarjeta">
+                                    <a href="{{ url_for('tarjetas.detalle', id=t.id) }}" class="table-primary-link">
+                                        {{ t.numero_tarjeta }}
+                                    </a>
+                                    <div class="table-subtext">{{ t.modelo_pantalla }}</div>
+                                </td>
+                                <td data-label="Ubicación">
+                                    {% if t.contenedor %}
+                                        {{ t.contenedor.nombre }}
+                                    {% else %}
+                                        <span class="text-muted">Sin asignar</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Stock" class="text-center">
+                                    <form method="POST" action="{{ url_for('tarjetas.actualizar_stock', id=t.id) }}"
+                                          class="stock-controls stock-controls-center js-stock-form" data-tarjeta-id="{{ t.id }}">
+                                        <button type="submit" name="action" value="decrement" class="btn btn-sm btn-secondary"
+                                                {% if t.stock == 0 %}disabled{% endif %}
+                                                aria-label="Restar 1 al stock de {{ t.numero_tarjeta }}">
+                                            {{ icon('minus', 16) }}
+                                        </button>
+                                        <span class="stock-count tabular-nums js-stock-count">{{ t.stock }}</span>
+                                        <button type="submit" name="action" value="increment" class="btn btn-sm btn-primary"
+                                                aria-label="Sumar 1 al stock de {{ t.numero_tarjeta }}">
+                                            {{ icon('plus', 16) }}
+                                        </button>
+                                    </form>
+                                </td>
+                                <td data-label="Estado">
+                                    <span class="badge js-stock-badge {% if t.stock == 0 %}badge-danger{% elif t.stock <= low_stock_threshold %}badge-warning{% else %}badge-success{% endif %}">
+                                        {% if t.stock == 0 %}Agotado{% elif t.stock <= low_stock_threshold %}Bajo stock{% else %}Disponible{% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="calm-empty">
+                {{ icon('check-circle', 32) }}
+                <p>No hay tarjetas agotadas ni en bajo stock.</p>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- Distribution by container -->
+    <section class="panel-box" aria-labelledby="containers-heading">
+        <div class="panel-head">
+            <h2 id="containers-heading">Distribución por contenedor</h2>
+            <a href="{{ url_for('contenedores.listar') }}" class="panel-link">Administrar</a>
+        </div>
+
+        {% if distribucion %}
+            <div class="table-responsive">
+                <table class="table compact-table">
+                    <thead>
+                        <tr>
+                            <th>Contenedor</th>
+                            <th class="text-center">Modelos</th>
+                            <th class="text-center">Piezas</th>
+                            <th class="text-right">Valor (MXN)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in distribucion %}
+                            <tr>
+                                <td data-label="Contenedor">
+                                    <a href="{{ url_for('tarjetas.listar', contenedor=d.filter_param) }}" class="table-primary-link">
+                                        {{ d.nombre }}
+                                    </a>
+                                    <div class="container-bar-track" aria-hidden="true">
+                                        <div class="container-bar-fill" style="width: {{ d.pct }}%;"></div>
+                                    </div>
+                                </td>
+                                <td data-label="Modelos" class="text-center tabular-nums">{{ d.modelos }}</td>
+                                <td data-label="Piezas" class="text-center tabular-nums nowrap">
+                                    <strong>{{ d.piezas }}</strong>
+                                    <span class="text-muted">({{ d.pct }}%)</span>
+                                </td>
+                                <td data-label="Valor (MXN)" class="text-right tabular-nums">{{ d.valor | mxn }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="calm-empty">
+                {{ icon('box', 32) }}
+                <p>Todavía no hay contenedores ni tarjetas registradas.</p>
+            </div>
+        {% endif %}
+    </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- RECENTLY UPDATED CARDS                                        -->
+<!-- ============================================================ -->
+{% if recientes %}
+    <section class="panel-box recent-section" aria-labelledby="recent-heading">
+        <div class="panel-head">
+            <h2 id="recent-heading">Actualizaciones recientes</h2>
+            <a href="{{ url_for('tarjetas.listar', orden='reciente') }}" class="panel-link">Ver todas</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table compact-table">
+                <thead>
+                    <tr>
+                        <th>Tarjeta</th>
+                        <th>Modelo de pantalla</th>
+                        <th>Contenedor</th>
+                        <th class="text-right">Precio</th>
+                        <th class="text-center">Stock</th>
+                        <th>Actualizado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in recientes %}
+                        <tr>
+                            <td data-label="Tarjeta">
+                                <a href="{{ url_for('tarjetas.detalle', id=t.id) }}" class="table-primary-link">
+                                    {{ t.numero_tarjeta }}
+                                </a>
+                            </td>
+                            <td data-label="Modelo de pantalla">{{ t.modelo_pantalla }}</td>
+                            <td data-label="Contenedor">
+                                {{ t.contenedor.nombre if t.contenedor else 'Sin asignar' }}
+                            </td>
+                            <td data-label="Precio" class="text-right tabular-nums">{{ t.precio | mxn }}</td>
+                            <td data-label="Stock" class="text-center tabular-nums">
+                                <span class="badge {% if t.stock == 0 %}badge-danger{% elif t.stock <= low_stock_threshold %}badge-warning{% else %}badge-success{% endif %}">
+                                    {{ t.stock }} {{ 'pza' if t.stock == 1 else 'pzas' }}
+                                </span>
+                            </td>
+                            <td data-label="Actualizado" class="tabular-nums">
+                                {{ t.updated_at.strftime('%d/%m/%Y %H:%M') if t.updated_at else '—' }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endif %}
+{% endblock %}

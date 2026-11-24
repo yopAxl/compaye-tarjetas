@@ -1,13 +1,22 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ 'Editar' if tarjeta else 'Nueva' }} Tarjeta — ComPaye{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>{{ 'Editar Tarjeta' if tarjeta else 'Nueva Tarjeta' }}</h1>
-    <a href="{{ url_for('tarjetas.listar') }}" class="btn btn-secondary">
-        ← Volver al listado
+    <a href="{{ url_for('tarjetas.detalle', id=tarjeta.id) if tarjeta else url_for('tarjetas.listar') }}" class="btn btn-secondary">
+        {{ icon('arrow-left', 18) }}
+        <span>{{ 'Volver al detalle' if tarjeta else 'Volver al listado' }}</span>
     </a>
 </div>
+
+{% set v_numero = form_data.numero_tarjeta if form_data is not none else (tarjeta.numero_tarjeta if tarjeta else '') %}
+{% set v_modelo = form_data.modelo_pantalla if form_data is not none else (tarjeta.modelo_pantalla if tarjeta else '') %}
+{% set v_precio = form_data.precio if form_data is not none else (('%.2f' | format(tarjeta.precio)) if tarjeta else '0.00') %}
+{% set v_stock = form_data.stock if form_data is not none else (tarjeta.stock if tarjeta else 0) %}
+{% set v_contenedor = form_data.contenedor_id if form_data is not none else (tarjeta.contenedor_id if tarjeta and tarjeta.contenedor_id else '') %}
+{% set v_compat = form_data.compatibilidades if form_data is not none else ((tarjeta.compatibilidades | map(attribute='pantalla_compatible') | join(', ')) if tarjeta else '') %}
 
 <form
     method="POST"
@@ -19,15 +28,15 @@
     <div class="form-row">
         <div class="form-group">
             <label for="numero_tarjeta" class="form-label">
-                Número de Tarjeta <span class="required">*</span>
+                Número de Tarjeta <span class="required" aria-hidden="true">*</span>
             </label>
             <input
                 type="text"
                 id="numero_tarjeta"
                 name="numero_tarjeta"
-                value="{{ tarjeta.numero_tarjeta if tarjeta else '' }}"
+                value="{{ v_numero }}"
                 class="input input-lg"
-                placeholder="Ej: T-001, BN-5520…"
+                placeholder="Ej: T-001, BN41-02528A"
                 required
                 autofocus
             >
@@ -35,15 +44,15 @@
 
         <div class="form-group">
             <label for="modelo_pantalla" class="form-label">
-                Modelo de Pantalla <span class="required">*</span>
+                Modelo de Pantalla <span class="required" aria-hidden="true">*</span>
             </label>
             <input
                 type="text"
                 id="modelo_pantalla"
                 name="modelo_pantalla"
-                value="{{ tarjeta.modelo_pantalla if tarjeta else '' }}"
+                value="{{ v_modelo }}"
                 class="input input-lg"
-                placeholder="Ej: Samsung UN55TU8000, LG 43LM6300…"
+                placeholder="Ej: Samsung UN55TU8000, LG 43LM6300"
                 required
             >
         </div>
@@ -52,13 +61,13 @@
     <!-- ROW 2: Precio + Stock + Contenedor -->
     <div class="form-row form-row-3">
         <div class="form-group">
-            <label for="precio" class="form-label">Precio ($)</label>
+            <label for="precio" class="form-label">Precio (MXN $)</label>
             <input
                 type="number"
                 id="precio"
                 name="precio"
-                value="{{ '%.2f' | format(tarjeta.precio) if tarjeta else '0.00' }}"
-                class="input input-lg"
+                value="{{ v_precio }}"
+                class="input input-lg tabular-nums"
                 min="0"
                 step="0.01"
                 placeholder="0.00"
@@ -66,13 +75,13 @@
         </div>
 
         <div class="form-group">
-            <label for="stock" class="form-label">Stock</label>
+            <label for="stock" class="form-label">Stock (piezas)</label>
             <input
                 type="number"
                 id="stock"
                 name="stock"
-                value="{{ tarjeta.stock if tarjeta else 0 }}"
-                class="input input-lg"
+                value="{{ v_stock }}"
+                class="input input-lg tabular-nums"
                 min="0"
                 step="1"
                 placeholder="0"
@@ -80,12 +89,12 @@
         </div>
 
         <div class="form-group">
-            <label for="contenedor_id" class="form-label">📦 Contenedor</label>
+            <label for="contenedor_id" class="form-label">Contenedor físico</label>
             <select id="contenedor_id" name="contenedor_id" class="input input-lg">
                 <option value="">— Sin asignar —</option>
                 {% for c in contenedores %}
                     <option value="{{ c.id }}"
-                        {% if tarjeta and tarjeta.contenedor_id == c.id %}selected{% endif %}>
+                        {% if v_contenedor|string == c.id|string %}selected{% endif %}>
                         {{ c.nombre }}
                     </option>
                 {% endfor %}
@@ -94,7 +103,7 @@
     </div>
 
     <!-- ROW 3: Compatibilidades -->
-    <div class="form-group">
+    <div class="form-group form-group-spaced">
         <label for="compatibilidades" class="form-label">
             Pantallas Compatibles
         </label>
@@ -102,57 +111,60 @@
             type="text"
             id="compatibilidades"
             name="compatibilidades"
-            value="{% if tarjeta %}{{ tarjeta.compatibilidades | map(attribute='pantalla_compatible') | join(', ') }}{% endif %}"
+            value="{{ v_compat }}"
             class="input input-lg"
-            placeholder="Separe con comas. Ej: Samsung UN55TU8000, LG 43LM6300, Hisense 50A6H"
+            placeholder="Ej: Samsung UN55TU8000, LG 43LM6300, Hisense 50A6H"
+            aria-describedby="compat-hint"
         >
-        <span class="form-hint">Escriba los modelos separados por comas (,)</span>
+        <span id="compat-hint" class="form-hint">Escriba los modelos separados por comas (,)</span>
     </div>
 
     <!-- ROW 4: Foto -->
-    <div class="form-group">
-        <label for="foto" class="form-label">📷 Fotografía</label>
+    <div class="form-group form-group-spaced">
+        <label for="foto" class="form-label">Fotografía de la tarjeta</label>
 
         {% if tarjeta and tarjeta.foto_path %}
             <div class="current-photo">
                 <img
                     src="{{ url_for('tarjetas.uploaded_file', filename=tarjeta.foto_path) }}"
-                    alt="Foto actual"
+                    alt="Foto actual de {{ tarjeta.numero_tarjeta }}"
                     class="photo-preview"
                     id="photo-preview"
                 >
                 <label class="checkbox-label">
                     <input type="checkbox" name="remove_foto" value="1">
-                    Eliminar foto actual
+                    <span>Eliminar fotografía actual</span>
                 </label>
             </div>
         {% else %}
-            <div class="photo-preview-container" id="photo-preview-container" style="display:none;">
-                <img src="" alt="Vista previa" class="photo-preview" id="photo-preview">
-            </div>
+            <div class="photo-preview-container" id="photo-preview-container" hidden></div>
         {% endif %}
 
-        <input
-            type="file"
-            id="foto"
-            name="foto"
-            accept="image/*"
-            class="input-file"
-            onchange="previewPhoto(this)"
-        >
-        <label for="foto" class="btn btn-secondary btn-file-label">
-            📁 Seleccionar imagen…
-        </label>
-        <span class="form-hint">Formatos: JPG, PNG, GIF, WebP — Máx. 16 MB</span>
+        <div class="file-upload-row">
+            <input
+                type="file"
+                id="foto"
+                name="foto"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                class="input-file"
+                onchange="previewPhoto(this)"
+            >
+            <label for="foto" class="btn btn-secondary btn-file-label">
+                {{ icon('upload', 18) }}
+                <span>Seleccionar imagen…</span>
+            </label>
+        </div>
+        <span class="form-hint">Formatos permitidos: JPG, PNG, GIF o WebP (máximo 16 MB)</span>
     </div>
 
     <!-- ACTIONS -->
     <div class="form-actions">
-        <a href="{{ url_for('tarjetas.listar') }}" class="btn btn-secondary btn-lg">
+        <a href="{{ url_for('tarjetas.detalle', id=tarjeta.id) if tarjeta else url_for('tarjetas.listar') }}" class="btn btn-secondary btn-lg">
             Cancelar
         </a>
         <button type="submit" class="btn btn-primary btn-lg">
-            💾 {{ 'Guardar Cambios' if tarjeta else 'Registrar Tarjeta' }}
+            {{ icon('save', 20) }}
+            <span>{{ 'Guardar Cambios' if tarjeta else 'Registrar Tarjeta' }}</span>
         </button>
     </div>
 </form>

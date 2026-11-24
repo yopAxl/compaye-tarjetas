@@ -1,26 +1,33 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Contenedores — ComPaye{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>📦 Contenedores</h1>
+    <h1>Contenedores</h1>
+    {% if sin_asignar_count > 0 %}
+        <a href="{{ url_for('tarjetas.listar', contenedor='sin_asignar') }}" class="btn btn-secondary">
+            {{ icon('alert-triangle', 18) }}
+            <span>{{ sin_asignar_count }} {{ 'tarjeta sin asignar' if sin_asignar_count == 1 else 'tarjetas sin asignar' }}</span>
+        </a>
+    {% endif %}
 </div>
 
 <!-- ============================================================ -->
 <!-- ADD CONTAINER FORM                                            -->
 <!-- ============================================================ -->
-<div class="form-card form-card-compact">
-    <h2>Agregar Nuevo Contenedor</h2>
+<section class="form-card form-card-compact" aria-labelledby="new-container-heading">
+    <h2 id="new-container-heading">Agregar Nuevo Contenedor</h2>
     <form method="POST" action="{{ url_for('contenedores.crear') }}">
-        <div class="form-row">
+        <div class="form-row form-row-container">
             <div class="form-group">
-                <label for="nombre" class="form-label">Nombre <span class="required">*</span></label>
+                <label for="nombre" class="form-label">Nombre <span class="required" aria-hidden="true">*</span></label>
                 <input
                     type="text"
                     id="nombre"
                     name="nombre"
                     class="input input-lg"
-                    placeholder="Ej: Caja A-1, Estante 3, Cajón Derecho…"
+                    placeholder="Ej: Caja A-1, Estante 3, Cajón Derecho"
                     required
                 >
             </div>
@@ -31,103 +38,126 @@
                     id="descripcion"
                     name="descripcion"
                     class="input input-lg"
-                    placeholder="Descripción opcional del contenedor…"
+                    placeholder="Referencia física o pasillo (opcional)"
                 >
             </div>
             <div class="form-group form-group-btn">
                 <button type="submit" class="btn btn-primary btn-lg">
-                    ➕ Agregar
+                    {{ icon('plus', 20) }}
+                    <span>Agregar</span>
                 </button>
             </div>
         </div>
     </form>
-</div>
+</section>
 
 <!-- ============================================================ -->
 <!-- CONTAINER LIST                                                -->
 <!-- ============================================================ -->
-{% if contenedores %}
+{% if contenedores_info %}
     <div class="table-responsive">
         <table class="table">
             <thead>
                 <tr>
                     <th>Nombre</th>
                     <th>Descripción</th>
-                    <th class="text-center">Tarjetas</th>
+                    <th class="text-center">Modelos</th>
+                    <th class="text-center">Piezas</th>
                     <th class="text-right">Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                {% for c in contenedores %}
+                {% for item in contenedores_info %}
+                    {% set c = item.contenedor %}
                     <tr>
-                        <td>
-                            <strong>📦 {{ c.nombre }}</strong>
+                        <td data-label="Nombre">
+                            <a href="{{ url_for('tarjetas.listar', contenedor=c.id) }}" class="table-primary-link location-link">
+                                {{ icon('box', 18) }}
+                                <span>{{ c.nombre }}</span>
+                            </a>
                         </td>
-                        <td>
+                        <td data-label="Descripción">
                             {{ c.descripcion or '—' }}
                         </td>
-                        <td class="text-center">
-                            <span class="badge {% if c.tarjetas|length > 0 %}badge-info{% else %}badge-muted{% endif %}">
-                                {{ c.tarjetas|length }}
-                            </span>
+                        <td data-label="Modelos" class="text-center">
+                            <a href="{{ url_for('tarjetas.listar', contenedor=c.id) }}"
+                               class="badge tabular-nums {% if item.modelos_count > 0 %}badge-info{% else %}badge-muted{% endif %}"
+                               title="Ver tarjetas en {{ c.nombre }}">
+                                {{ item.modelos_count }}
+                            </a>
                         </td>
-                        <td class="text-right">
+                        <td data-label="Piezas" class="text-center tabular-nums">
+                            <strong>{{ item.piezas_count }}</strong>
+                        </td>
+                        <td data-label="Acciones" class="text-right">
                             <div class="action-buttons">
-                                <!-- Edit (inline toggle) -->
+                                <a href="{{ url_for('tarjetas.listar', contenedor=c.id) }}" class="btn btn-sm btn-outline">
+                                    Ver tarjetas
+                                </a>
+
                                 <button
                                     type="button"
-                                    class="btn btn-sm btn-secondary"
-                                    onclick="toggleEditRow(this, {{ c.id }}, '{{ c.nombre }}', '{{ c.descripcion or '' }}')"
-                                    title="Editar contenedor"
+                                    class="btn btn-sm btn-secondary js-edit-toggle"
+                                    data-edit-id="{{ c.id }}"
+                                    aria-expanded="false"
+                                    aria-controls="edit-row-{{ c.id }}"
                                 >
-                                    ✏️ Editar
+                                    {{ icon('edit', 16) }}
+                                    <span>Editar</span>
                                 </button>
 
-                                <!-- Delete -->
                                 <form method="POST" action="{{ url_for('contenedores.eliminar', id=c.id) }}" class="inline-form">
                                     <button
                                         type="submit"
                                         class="btn btn-sm btn-danger"
-                                        data-confirm="¿Está seguro de que desea eliminar el contenedor &quot;{{ c.nombre }}&quot;?"
-                                        {% if c.tarjetas|length > 0 %}
-                                            title="No se puede eliminar: tiene {{ c.tarjetas|length }} tarjeta(s)"
+                                        data-confirm-title="Eliminar contenedor"
+                                        data-confirm="¿Está seguro de eliminar el contenedor &quot;{{ c.nombre }}&quot;?"
+                                        data-confirm-action="Eliminar contenedor"
+                                        aria-label="Eliminar contenedor {{ c.nombre }}"
+                                        {% if item.modelos_count > 0 %}
+                                            disabled
+                                            title="No se puede eliminar: tiene {{ item.modelos_count }} tarjeta(s) asignada(s)"
                                         {% else %}
                                             title="Eliminar contenedor"
                                         {% endif %}
                                     >
-                                        🗑️
+                                        {{ icon('trash', 16) }}
                                     </button>
                                 </form>
                             </div>
                         </td>
                     </tr>
-                    <!-- Hidden edit row (toggled by JS) -->
-                    <tr id="edit-row-{{ c.id }}" class="edit-row" style="display:none;">
-                        <td colspan="4">
+                    <tr id="edit-row-{{ c.id }}" class="edit-row" hidden>
+                        <td colspan="5">
                             <form method="POST" action="{{ url_for('contenedores.editar', id=c.id) }}" class="edit-inline-form">
-                                <div class="form-row">
+                                <div class="form-row form-row-container">
                                     <div class="form-group">
+                                        <label for="edit-nombre-{{ c.id }}" class="form-label">Nombre</label>
                                         <input
                                             type="text"
+                                            id="edit-nombre-{{ c.id }}"
                                             name="nombre"
                                             value="{{ c.nombre }}"
                                             class="input"
                                             required
-                                            placeholder="Nombre"
                                         >
                                     </div>
                                     <div class="form-group">
+                                        <label for="edit-desc-{{ c.id }}" class="form-label">Descripción</label>
                                         <input
                                             type="text"
+                                            id="edit-desc-{{ c.id }}"
                                             name="descripcion"
                                             value="{{ c.descripcion or '' }}"
                                             class="input"
-                                            placeholder="Descripción"
                                         >
                                     </div>
-                                    <div class="form-group form-group-btn">
-                                        <button type="submit" class="btn btn-primary">💾 Guardar</button>
-                                        <button type="button" class="btn btn-secondary" onclick="toggleEditRow(this, {{ c.id }})">
+                                    <div class="form-group form-group-btn action-buttons">
+                                        <button type="submit" class="btn btn-primary">
+                                            {{ icon('save', 18) }}
+                                            <span>Guardar</span>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary js-edit-toggle" data-edit-id="{{ c.id }}">
                                             Cancelar
                                         </button>
                                     </div>
@@ -141,9 +171,9 @@
     </div>
 {% else %}
     <div class="empty-state">
-        <div class="empty-state-icon">📦</div>
+        <div class="empty-state-icon" aria-hidden="true">{{ icon('box', 52) }}</div>
         <h2>No hay contenedores registrados</h2>
-        <p>Agregue contenedores para organizar la ubicación física de sus tarjetas.</p>
+        <p>Agregue cajas, cajones o estantes arriba para organizar la ubicación física de sus tarjetas.</p>
     </div>
 {% endif %}
 {% endblock %}

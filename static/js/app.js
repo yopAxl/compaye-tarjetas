@@ -1,83 +1,177 @@
 /**
- * ComPaye Tarjetas — Main JavaScript
+ * ComPaye Tarjetas — Client Interaction Script
  *
  * Handles:
- *  - Delete confirmation dialog
+ *  - Accessible <dialog> delete confirmation
+ *  - Seamless AJAX stock +/- updates (preserves scroll, updates badges & ARIA live region)
  *  - Photo file preview
- *  - Inline container editing toggle
- *  - Auto-dismiss flash messages
+ *  - Inline container edit toggle
+ *  - Smart flash auto-dismiss (pauses on hover/focus)
  */
 
 (function () {
     'use strict';
 
+    const announcer = document.getElementById('live-announcer');
+
+    function announce(text) {
+        if (!announcer) return;
+        announcer.textContent = '';
+        window.setTimeout(function () {
+            announcer.textContent = text;
+        }, 30);
+    }
+
+
     // =================================================================
-    // CONFIRMATION DIALOG
+    // ACCESSIBLE CONFIRMATION DIALOG
     // =================================================================
 
-    const overlay  = document.getElementById('confirm-dialog');
-    const msgEl    = document.getElementById('confirm-message');
-    const okBtn    = document.getElementById('confirm-ok');
+    const dialog    = document.getElementById('confirm-dialog');
+    const titleEl   = document.getElementById('confirm-title');
+    const msgEl     = document.getElementById('confirm-message');
+    const okBtn     = document.getElementById('confirm-ok');
     const cancelBtn = document.getElementById('confirm-cancel');
     let pendingForm = null;
 
-    function showConfirm(message, form) {
-        msgEl.textContent = message;
+    function openConfirm(btn, form) {
+        if (!dialog || typeof dialog.showModal !== 'function') {
+            if (window.confirm(btn.getAttribute('data-confirm'))) {
+                form.submit();
+            }
+            return;
+        }
+
+        titleEl.textContent = btn.getAttribute('data-confirm-title') || 'Confirmar acción';
+        msgEl.textContent   = btn.getAttribute('data-confirm') || '¿Está seguro de continuar?';
+        okBtn.textContent   = btn.getAttribute('data-confirm-action') || 'Eliminar';
         pendingForm = form;
-        overlay.style.display = 'flex';
+        dialog.showModal();
         cancelBtn.focus();
     }
 
-    function hideConfirm() {
-        overlay.style.display = 'none';
-        pendingForm = null;
-    }
-
-    if (okBtn) {
+    if (okBtn && dialog) {
         okBtn.addEventListener('click', function () {
-            if (pendingForm) {
-                pendingForm.submit();
+            const formToSubmit = pendingForm;
+            pendingForm = null;
+            dialog.close();
+            if (formToSubmit) formToSubmit.submit();
+        });
+    }
+
+    if (cancelBtn && dialog) {
+        cancelBtn.addEventListener('click', function () {
+            pendingForm = null;
+            dialog.close();
+        });
+    }
+
+    if (dialog) {
+        dialog.addEventListener('click', function (e) {
+            if (e.target === dialog) {
+                pendingForm = null;
+                dialog.close();
             }
-            hideConfirm();
         });
     }
 
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', hideConfirm);
-    }
-
-    if (overlay) {
-        overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) hideConfirm();
-        });
-    }
-
-    // Attach to any button with data-confirm
     document.addEventListener('click', function (e) {
         const btn = e.target.closest('[data-confirm]');
-        if (!btn) return;
+        if (!btn || btn.disabled) return;
 
         e.preventDefault();
-        e.stopPropagation();
-
         const form = btn.closest('form');
-        const message = btn.getAttribute('data-confirm');
-
-        if (form && message) {
-            showConfirm(message, form);
-        }
-    });
-
-    // ESC to close
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && overlay && overlay.style.display === 'flex') {
-            hideConfirm();
-        }
+        if (form) openConfirm(btn, form);
     });
 
 
     // =================================================================
-    // PHOTO PREVIEW
+    // AJAX STOCK +/- CONTROLS (no page jump)
+    // =================================================================
+
+    function updateBadgeClass(badge, estado, label) {
+        if (!badge) return;
+        badge.classList.remove('badge-danger', 'badge-warning', 'badge-success');
+        if (estado === 'agotado') {
+            badge.classList.add('badge-danger');
+        } else if (estado === 'bajo') {
+            badge.classList.add('badge-warning');
+        } else {
+            badge.classList.add('badge-success');
+        }
+        badge.textContent = label;
+    }
+
+    document.addEventListener('submit', function (e) {
+        const form = e.target.closest('.js-stock-form');
+        if (!form || !window.fetch) return;
+
+        const submitter = e.submitter;
+        if (!submitter || !submitter.name) return;
+
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        formData.set(submitter.name, submitter.value);
+
+        const buttons = form.querySelectorAll('button[type="submit"]');
+        buttons.forEach(function (b) { b.disabled = true; });
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            body: formData,
+        })
+            .then(function (resp) {
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                return resp.json();
+            })
+            .then(function (data) {
+                if (!data.ok) throw new Error('Update failed');
+
+                const scope = form.closest('[data-card-item], [data-card-row]') || document;
+                const countEl = form.querySelector('.js-stock-count');
+                if (countEl) countEl.textContent = data.stock;
+
+                const inlineEl = scope.querySelector('.js-stock-inline');
+                if (inlineEl) inlineEl.textContent = data.stock;
+
+                const badgeEl = scope.querySelector('.js-stock-badge');
+                updateBadgeClass(badgeEl, data.estado, data.estado_label);
+
+                if (scope.matches && scope.matches('[data-card-item]')) {
+                    scope.classList.toggle('card-out-of-stock', data.stock === 0);
+                }
+                if (scope.matches && scope.matches('[data-card-row]')) {
+                    scope.classList.toggle('row-out-of-stock', data.stock === 0);
+                }
+
+                const decBtn = form.querySelector('button[value="decrement"]');
+                const incBtn = form.querySelector('button[value="increment"]');
+                if (decBtn) decBtn.disabled = data.stock <= 0;
+                if (incBtn) incBtn.disabled = false;
+
+                announce('Stock actualizado a ' + data.stock + ' piezas. Estado: ' + data.estado_label + '.');
+            })
+            .catch(function () {
+                // Graceful fallback to standard POST
+                buttons.forEach(function (b) { b.disabled = false; });
+                form.classList.remove('js-stock-form');
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = submitter.name;
+                hidden.value = submitter.value;
+                form.appendChild(hidden);
+                form.submit();
+            });
+    });
+
+
+    // =================================================================
+    // PHOTO FILE PREVIEW
     // =================================================================
 
     window.previewPhoto = function (input) {
@@ -90,21 +184,24 @@
             let previewImg = document.getElementById('photo-preview');
             const container = document.getElementById('photo-preview-container');
 
-            if (container) {
-                container.style.display = 'block';
+            if (!previewImg && container) {
+                previewImg = document.createElement('img');
+                previewImg.id = 'photo-preview';
+                previewImg.alt = 'Vista previa de la tarjeta';
+                previewImg.className = 'photo-preview';
+                container.appendChild(previewImg);
             }
 
-            if (previewImg) {
-                previewImg.src = e.target.result;
-            }
+            if (container) container.hidden = false;
+            if (previewImg) previewImg.src = e.target.result;
         };
 
         reader.readAsDataURL(file);
 
-        // Update the label text
         const label = input.nextElementSibling;
         if (label && label.classList.contains('btn-file-label')) {
-            label.textContent = '📁 ' + file.name;
+            const span = label.querySelector('span');
+            if (span) span.textContent = file.name;
         }
     };
 
@@ -113,34 +210,69 @@
     // CONTAINER INLINE EDIT TOGGLE
     // =================================================================
 
-    window.toggleEditRow = function (btn, containerId) {
-        const editRow = document.getElementById('edit-row-' + containerId);
+    document.addEventListener('click', function (e) {
+        const toggleBtn = e.target.closest('.js-edit-toggle');
+        if (!toggleBtn) return;
+
+        const id = toggleBtn.getAttribute('data-edit-id');
+        const editRow = document.getElementById('edit-row-' + id);
         if (!editRow) return;
 
-        const isVisible = editRow.style.display !== 'none';
-        editRow.style.display = isVisible ? 'none' : 'table-row';
+        const isHidden = editRow.hidden;
+        editRow.hidden = !isHidden;
 
-        if (!isVisible) {
-            const firstInput = editRow.querySelector('input');
+        const triggers = document.querySelectorAll('.js-edit-toggle[data-edit-id="' + id + '"]');
+        triggers.forEach(function (t) {
+            if (t.hasAttribute('aria-expanded')) {
+                t.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+            }
+        });
+
+        if (isHidden) {
+            const firstInput = editRow.querySelector('input[name="nombre"]');
             if (firstInput) firstInput.focus();
         }
-    };
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        const openRow = e.target.closest('.edit-row');
+        if (!openRow) return;
+        openRow.hidden = true;
+        const id = openRow.id.replace('edit-row-', '');
+        const btn = document.querySelector('.js-edit-toggle[aria-expanded][data-edit-id="' + id + '"]');
+        if (btn) {
+            btn.setAttribute('aria-expanded', 'false');
+            btn.focus();
+        }
+    });
 
 
     // =================================================================
-    // AUTO-DISMISS FLASH MESSAGES (after 6 seconds)
+    // AUTO-DISMISS FLASH MESSAGES (pauses while hovered/focused)
     // =================================================================
 
-    const flashes = document.querySelectorAll('.flash');
-    flashes.forEach(function (flash) {
-        setTimeout(function () {
-            flash.style.transition = 'opacity 0.5s, transform 0.5s';
-            flash.style.opacity = '0';
-            flash.style.transform = 'translateY(-10px)';
-            setTimeout(function () {
-                flash.remove();
-            }, 500);
-        }, 6000);
+    document.querySelectorAll('.flash').forEach(function (flash) {
+        let timer = null;
+
+        function scheduleDismiss() {
+            timer = window.setTimeout(function () {
+                flash.style.opacity = '0';
+                window.setTimeout(function () {
+                    flash.remove();
+                }, 250);
+            }, 7000);
+        }
+
+        flash.addEventListener('mouseenter', function () {
+            if (timer) window.clearTimeout(timer);
+        });
+        flash.addEventListener('focusin', function () {
+            if (timer) window.clearTimeout(timer);
+        });
+        flash.addEventListener('mouseleave', scheduleDismiss);
+
+        scheduleDismiss();
     });
 
 })();

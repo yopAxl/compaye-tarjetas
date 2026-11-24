@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,23 +8,36 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Ir al contenido principal</a>
+
     <!-- ============================================================ -->
     <!-- NAVIGATION                                                    -->
     <!-- ============================================================ -->
     <header class="main-header">
-        <nav class="main-nav container">
+        <nav class="main-nav container" aria-label="Navegación principal">
             <a href="{{ url_for('tarjetas.listar') }}" class="nav-logo">
-                <span class="nav-logo-icon">📋</span>
+                <span class="nav-logo-mark">{{ icon('circuit', 26) }}</span>
                 <span class="nav-logo-text">ComPaye Tarjetas</span>
             </a>
+
             <div class="nav-links">
                 <a href="{{ url_for('tarjetas.listar') }}"
-                   class="nav-link {% if request.path.startswith('/tarjetas') or request.path == '/' %}active{% endif %}">
-                    🔍 Tarjetas
+                   class="nav-link {% if request.path.startswith('/tarjetas') or request.path == '/' %}active{% endif %}"
+                   {% if request.path.startswith('/tarjetas') or request.path == '/' %}aria-current="page"{% endif %}>
+                    {{ icon('search', 20) }}
+                    <span>Tarjetas</span>
+                </a>
+                <a href="{{ url_for('dashboard.resumen') }}"
+                   class="nav-link {% if request.path.startswith('/estadisticas') or request.path.startswith('/dashboard') %}active{% endif %}"
+                   {% if request.path.startswith('/estadisticas') or request.path.startswith('/dashboard') %}aria-current="page"{% endif %}>
+                    {{ icon('chart', 20) }}
+                    <span>Estadísticas</span>
                 </a>
                 <a href="{{ url_for('contenedores.listar') }}"
-                   class="nav-link {% if request.path.startswith('/contenedores') %}active{% endif %}">
-                    📦 Contenedores
+                   class="nav-link {% if request.path.startswith('/contenedores') %}active{% endif %}"
+                   {% if request.path.startswith('/contenedores') %}aria-current="page"{% endif %}>
+                    {{ icon('box', 20) }}
+                    <span>Contenedores</span>
                 </a>
             </div>
         </nav>
@@ -38,10 +52,18 @@
                 {% for category, message in messages %}
                     <div class="flash flash-{{ category }}" role="alert">
                         <span class="flash-icon">
-                            {% if category == 'success' %}✅{% elif category == 'error' %}❌{% else %}ℹ️{% endif %}
+                            {% if category == 'success' %}
+                                {{ icon('check-circle', 22) }}
+                            {% elif category == 'error' %}
+                                {{ icon('x-circle', 22) }}
+                            {% else %}
+                                {{ icon('info', 22) }}
+                            {% endif %}
                         </span>
                         <span class="flash-text">{{ message }}</span>
-                        <button class="flash-close" onclick="this.parentElement.remove()" aria-label="Cerrar">✕</button>
+                        <button type="button" class="flash-close" onclick="this.parentElement.remove()" aria-label="Cerrar aviso">
+                            {{ icon('x', 20) }}
+                        </button>
                     </div>
                 {% endfor %}
             </div>
@@ -49,9 +71,14 @@
     {% endwith %}
 
     <!-- ============================================================ -->
+    <!-- ARIA LIVE REGION FOR AJAX STOCK UPDATES                       -->
+    <!-- ============================================================ -->
+    <div id="live-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- ============================================================ -->
     <!-- MAIN CONTENT                                                  -->
     <!-- ============================================================ -->
-    <main class="main-content container">
+    <main id="main-content" class="main-content container">
         {% block content %}{% endblock %}
     </main>
 
@@ -59,23 +86,25 @@
     <!-- FOOTER                                                        -->
     <!-- ============================================================ -->
     <footer class="main-footer">
-        <div class="container">
-            <p>ComPaye Tarjetas © 2026 — Sistema de Inventario</p>
+        <div class="container footer-inner">
+            <p>ComPaye Tarjetas — Control de inventario local</p>
+            <p class="footer-note">Precios en pesos mexicanos (MXN) · Alerta de bajo stock en {{ low_stock_threshold }} piezas o menos</p>
         </div>
     </footer>
 
     <!-- ============================================================ -->
-    <!-- CONFIRMATION DIALOG (shared)                                  -->
+    <!-- CONFIRMATION DIALOG (native accessible <dialog>)              -->
     <!-- ============================================================ -->
-    <div id="confirm-dialog" class="dialog-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
         <div class="dialog-box">
-            <p class="dialog-message" id="confirm-message">¿Está seguro?</p>
+            <h2 id="confirm-title" class="dialog-title">Confirmar eliminación</h2>
+            <p class="dialog-message" id="confirm-message">¿Está seguro de continuar?</p>
             <div class="dialog-actions">
-                <button class="btn btn-secondary" id="confirm-cancel">Cancelar</button>
-                <button class="btn btn-danger" id="confirm-ok">Eliminar</button>
+                <button type="button" class="btn btn-secondary" id="confirm-cancel">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirm-ok">Eliminar</button>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

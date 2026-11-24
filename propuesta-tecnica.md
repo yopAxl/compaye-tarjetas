@@ -41,7 +41,6 @@ Actualmente la búsqueda de tarjetas de pantallas se hace de forma **física y m
 | `contenedor` | Texto | Ubicación física donde se guardó (ej: "Caja A-3", "Estante 2") |
 
 ### 2.3 Búsqueda y Filtrado
-- Búsqueda por **texto libre** (número, modelo, compatibilidad).
 - Filtros combinados: por contenedor, rango de precio, stock disponible.
 - Resultados con vista de **tabla** y vista de **tarjetas con foto**.
 
