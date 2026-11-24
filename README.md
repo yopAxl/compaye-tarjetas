@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-# 📋 ComPaye Tarjetas
+# 📋 Compaye Tarjetas
 
 Sistema de inventario digital para tarjetas de pantallas — diseñado para funcionar **100% offline** en equipos de bajos recursos.
 
@@ -64,8 +63,7 @@ compaye-tarjetas/
 
 ## 💾 Respaldos
 
-La base de datos es un archivo único en `database/compaye.db`.
-Para respaldarlo, simplemente copie ese archivo y la carpeta `uploads/`.
+La base de datos es un archivo único en `database/compaye.db`. Para respaldarlo, simplemente copie ese archivo y la carpeta `uploads/`.
 
 ## 🌐 Uso en Red Local (LAN)
 
@@ -78,7 +76,3 @@ app.run(host='0.0.0.0', port=5000)
 ## 📄 Licencia
 
 Uso interno — ComPaye © 2026
-=======
-# compaye-tarjetas
-Compaye Tarjetas es la opción digital para la gestión del almacén de tarjetas de pantallas.
->>>>>>> 3af78d8aba37efc6973a3d551f5ea69e8ca55022
