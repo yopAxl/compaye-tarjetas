@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 📋 ComPaye Tarjetas
 
 Sistema de inventario digital para tarjetas de pantallas — diseñado para funcionar **100% offline** en equipos de bajos recursos.
@@ -77,3 +78,7 @@ app.run(host='0.0.0.0', port=5000)
 ## 📄 Licencia
 
 Uso interno — ComPaye © 2026
+=======
+# compaye-tarjetas
+Compaye Tarjetas es la opción digital para la gestión del almacén de tarjetas de pantallas.
+>>>>>>> 3af78d8aba37efc6973a3d551f5ea69e8ca55022
