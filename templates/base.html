@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ComPaye Tarjetas{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- ============================================================ -->
+    <!-- NAVIGATION                                                    -->
+    <!-- ============================================================ -->
+    <header class="main-header">
+        <nav class="main-nav container">
+            <a href="{{ url_for('tarjetas.listar') }}" class="nav-logo">
+                <span class="nav-logo-icon">📋</span>
+                <span class="nav-logo-text">ComPaye Tarjetas</span>
+            </a>
+            <div class="nav-links">
+                <a href="{{ url_for('tarjetas.listar') }}"
+                   class="nav-link {% if request.path.startswith('/tarjetas') or request.path == '/' %}active{% endif %}">
+                    🔍 Tarjetas
+                </a>
+                <a href="{{ url_for('contenedores.listar') }}"
+                   class="nav-link {% if request.path.startswith('/contenedores') %}active{% endif %}">
+                    📦 Contenedores
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ============================================================ -->
+    <!-- FLASH MESSAGES                                                -->
+    <!-- ============================================================ -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container container">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}" role="alert">
+                        <span class="flash-icon">
+                            {% if category == 'success' %}✅{% elif category == 'error' %}❌{% else %}ℹ️{% endif %}
+                        </span>
+                        <span class="flash-text">{{ message }}</span>
+                        <button class="flash-close" onclick="this.parentElement.remove()" aria-label="Cerrar">✕</button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- ============================================================ -->
+    <!-- MAIN CONTENT                                                  -->
+    <!-- ============================================================ -->
+    <main class="main-content container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ============================================================ -->
+    <!-- FOOTER                                                        -->
+    <!-- ============================================================ -->
+    <footer class="main-footer">
+        <div class="container">
+            <p>ComPaye Tarjetas © 2026 — Sistema de Inventario</p>
+        </div>
+    </footer>
+
+    <!-- ============================================================ -->
+    <!-- CONFIRMATION DIALOG (shared)                                  -->
+    <!-- ============================================================ -->
+    <div id="confirm-dialog" class="dialog-overlay" style="display:none;" role="dialog" aria-modal="true">
+        <div class="dialog-box">
+            <p class="dialog-message" id="confirm-message">¿Está seguro?</p>
+            <div class="dialog-actions">
+                <button class="btn btn-secondary" id="confirm-cancel">Cancelar</button>
+                <button class="btn btn-danger" id="confirm-ok">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

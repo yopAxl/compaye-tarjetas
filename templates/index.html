@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Tarjetas — ComPaye{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Inventario de Tarjetas</h1>
+        <span class="badge badge-info">{{ total }} resultado{{ 's' if total != 1 else '' }}</span>
+    </div>
+    <a href="{{ url_for('tarjetas.crear') }}" class="btn btn-primary btn-lg">
+        ➕ Nueva Tarjeta
+    </a>
+</div>
+
+<!-- ============================================================ -->
+<!-- SEARCH & FILTERS                                              -->
+<!-- ============================================================ -->
+<form method="GET" action="{{ url_for('tarjetas.listar') }}" class="search-bar">
+    <div class="search-input-group">
+        <label for="search-input" class="sr-only">Buscar tarjeta</label>
+        <input
+            type="text"
+            id="search-input"
+            name="q"
+            value="{{ query }}"
+            placeholder="Buscar por número, modelo o pantalla compatible…"
+            class="input input-lg search-field"
+            autocomplete="off"
+        >
+        <button type="submit" class="btn btn-primary">🔍 Buscar</button>
+    </div>
+
+    <div class="filter-row">
+        <div class="filter-group">
+            <label for="filter-contenedor">📦 Contenedor:</label>
+            <select id="filter-contenedor" name="contenedor" class="input" onchange="this.form.submit()">
+                <option value="">— Todos —</option>
+                {% for c in contenedores %}
+                    <option value="{{ c.id }}" {% if contenedor_id|string == c.id|string %}selected{% endif %}>
+                        {{ c.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="filter-stock">📊 Stock:</label>
+            <select id="filter-stock" name="stock" class="input" onchange="this.form.submit()">
+                <option value="">— Todos —</option>
+                <option value="disponible" {% if stock_filter == 'disponible' %}selected{% endif %}>
+                    ✅ Disponible
+                </option>
+                <option value="agotado" {% if stock_filter == 'agotado' %}selected{% endif %}>
+                    ❌ Agotado
+                </option>
+            </select>
+        </div>
+
+        {% if query or contenedor_id or stock_filter %}
+            <a href="{{ url_for('tarjetas.listar') }}" class="btn btn-secondary">
+                🗑️ Limpiar filtros
+            </a>
+        {% endif %}
+    </div>
+</form>
+
+<!-- ============================================================ -->
+<!-- CARD GRID                                                     -->
+<!-- ============================================================ -->
+{% if tarjetas %}
+    <div class="card-grid">
+        {% for t in tarjetas %}
+            <article class="card {% if t.stock == 0 %}card-out-of-stock{% endif %}">
+                <!-- Photo -->
+                <div class="card-img-wrapper">
+                    {% if t.foto_path %}
+                        <img
+                            src="{{ url_for('tarjetas.uploaded_file', filename=t.foto_path) }}"
+                            alt="Foto de tarjeta {{ t.numero_tarjeta }}"
+                            class="card-img"
+                            loading="lazy"
+                        >
+                    {% else %}
+                        <div class="card-img-placeholder">📷</div>
+                    {% endif %}
+                    {% if t.stock == 0 %}
+                        <span class="card-badge badge-danger">AGOTADO</span>
+                    {% endif %}
+                </div>
+
+                <!-- Info -->
+                <div class="card-body">
+                    <h2 class="card-title">
+                        <a href="{{ url_for('tarjetas.detalle', id=t.id) }}">
+                            {{ t.numero_tarjeta }}
+                        </a>
+                    </h2>
+                    <p class="card-subtitle">{{ t.modelo_pantalla }}</p>
+
+                    <div class="card-meta">
+                        <span class="card-price">${{ '%.2f' | format(t.precio) }}</span>
+                        <span class="card-stock">
+                            Stock:
+                            <strong class="{% if t.stock == 0 %}text-danger{% elif t.stock <= 3 %}text-warning{% else %}text-success{% endif %}">
+                                {{ t.stock }}
+                            </strong>
+                        </span>
+                    </div>
+
+                    {% if t.contenedor %}
+                        <p class="card-location">📦 {{ t.contenedor.nombre }}</p>
+                    {% endif %}
+
+                    {% if t.compatibilidades %}
+                        <div class="card-compat">
+                            {% for c in t.compatibilidades[:3] %}
+                                <span class="tag">{{ c.pantalla_compatible }}</span>
+                            {% endfor %}
+                            {% if t.compatibilidades|length > 3 %}
+                                <span class="tag tag-more">+{{ t.compatibilidades|length - 3 }} más</span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Quick stock controls -->
+                <div class="card-footer">
+                    <form method="POST" action="{{ url_for('tarjetas.actualizar_stock', id=t.id) }}" class="stock-controls">
+                        <button type="submit" name="action" value="decrement" class="btn btn-sm btn-secondary"
+                                {% if t.stock == 0 %}disabled{% endif %}
+                                title="Restar 1 al stock">
+                            ➖
+                        </button>
+                        <span class="stock-count">{{ t.stock }}</span>
+                        <button type="submit" name="action" value="increment" class="btn btn-sm btn-primary"
+                                title="Sumar 1 al stock">
+                            ➕
+                        </button>
+                    </form>
+
+                    <a href="{{ url_for('tarjetas.detalle', id=t.id) }}" class="btn btn-sm btn-outline" title="Ver detalle">
+                        Ver más →
+                    </a>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <!-- Empty state -->
+    <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        {% if query or contenedor_id or stock_filter %}
+            <h2>No se encontraron tarjetas</h2>
+            <p>Intente con otros términos de búsqueda o filtros.</p>
+            <a href="{{ url_for('tarjetas.listar') }}" class="btn btn-primary btn-lg">
+                Ver todas las tarjetas
+            </a>
+        {% else %}
+            <h2>No hay tarjetas registradas</h2>
+            <p>Comience agregando su primera tarjeta al inventario.</p>
+            <a href="{{ url_for('tarjetas.crear') }}" class="btn btn-primary btn-lg">
+                ➕ Agregar Primera Tarjeta
+            </a>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}

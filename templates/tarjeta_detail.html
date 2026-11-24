@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}{{ tarjeta.numero_tarjeta }} — ComPaye{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Detalle de Tarjeta</h1>
+    <a href="{{ url_for('tarjetas.listar') }}" class="btn btn-secondary">
+        ← Volver al listado
+    </a>
+</div>
+
+<div class="detail-layout">
+    <!-- LEFT: Photo -->
+    <div class="detail-photo">
+        {% if tarjeta.foto_path %}
+            <img
+                src="{{ url_for('tarjetas.uploaded_file', filename=tarjeta.foto_path) }}"
+                alt="Foto de tarjeta {{ tarjeta.numero_tarjeta }}"
+                class="detail-img"
+            >
+        {% else %}
+            <div class="detail-img-placeholder">
+                <span>📷</span>
+                <p>Sin fotografía</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- RIGHT: Info -->
+    <div class="detail-info">
+        <div class="detail-header">
+            <h2 class="detail-title">{{ tarjeta.numero_tarjeta }}</h2>
+            {% if tarjeta.stock == 0 %}
+                <span class="badge badge-danger">AGOTADO</span>
+            {% elif tarjeta.stock <= 3 %}
+                <span class="badge badge-warning">BAJO STOCK</span>
+            {% else %}
+                <span class="badge badge-success">DISPONIBLE</span>
+            {% endif %}
+        </div>
+
+        <table class="detail-table">
+            <tbody>
+                <tr>
+                    <th>Modelo de Pantalla</th>
+                    <td>{{ tarjeta.modelo_pantalla }}</td>
+                </tr>
+                <tr>
+                    <th>Precio</th>
+                    <td class="detail-price">${{ '%.2f' | format(tarjeta.precio) }}</td>
+                </tr>
+                <tr>
+                    <th>Stock</th>
+                    <td>
+                        <div class="stock-inline">
+                            <form method="POST" action="{{ url_for('tarjetas.actualizar_stock', id=tarjeta.id) }}" class="stock-controls">
+                                <button type="submit" name="action" value="decrement" class="btn btn-sm btn-secondary"
+                                        {% if tarjeta.stock == 0 %}disabled{% endif %}>
+                                    ➖
+                                </button>
+                                <span class="stock-count stock-count-lg {% if tarjeta.stock == 0 %}text-danger{% elif tarjeta.stock <= 3 %}text-warning{% else %}text-success{% endif %}">
+                                    {{ tarjeta.stock }}
+                                </span>
+                                <button type="submit" name="action" value="increment" class="btn btn-sm btn-primary">
+                                    ➕
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Contenedor</th>
+                    <td>
+                        {% if tarjeta.contenedor %}
+                            📦 {{ tarjeta.contenedor.nombre }}
+                            {% if tarjeta.contenedor.descripcion %}
+                                <span class="text-muted"> — {{ tarjeta.contenedor.descripcion }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">Sin asignar</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Pantallas Compatibles</th>
+                    <td>
+                        {% if tarjeta.compatibilidades %}
+                            <div class="tag-list">
+                                {% for c in tarjeta.compatibilidades %}
+                                    <span class="tag">{{ c.pantalla_compatible }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted">Ninguna registrada</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Fecha de Registro</th>
+                    <td>{{ tarjeta.created_at.strftime('%d/%m/%Y %H:%M') if tarjeta.created_at else '—' }}</td>
+                </tr>
+                <tr>
+                    <th>Última Actualización</th>
+                    <td>{{ tarjeta.updated_at.strftime('%d/%m/%Y %H:%M') if tarjeta.updated_at else '—' }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Action buttons -->
+        <div class="detail-actions">
+            <a href="{{ url_for('tarjetas.editar', id=tarjeta.id) }}" class="btn btn-primary btn-lg">
+                ✏️ Editar Tarjeta
+            </a>
+            <form method="POST" action="{{ url_for('tarjetas.eliminar', id=tarjeta.id) }}" class="inline-form">
+                <button type="submit" class="btn btn-danger btn-lg" data-confirm="¿Está seguro de que desea eliminar la tarjeta &quot;{{ tarjeta.numero_tarjeta }}&quot;? Esta acción no se puede deshacer.">
+                    🗑️ Eliminar
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
